@@ -33,7 +33,7 @@
             padding: 0;
         }
         .options li {
-            margin: 3px 0; /* Reduced space for accessibility */
+            margin: 6px 0; /* Increased gap between options */
         }
         .speak-btn {
             background: #007bff;
@@ -69,10 +69,6 @@
         <div id="timer">05:00</div>
         <div id="quiz"></div>
         <button id="submit-btn" onclick="submitQuiz()">Submit</button>
-        <div id="result-container" style="display:none;">
-            <p id="result-text"></p>
-            <button class="speak-btn" onclick="speakResult()">🔊 Speak Result</button>
-        </div>
     </div>
     
     <script>
@@ -80,13 +76,12 @@
             { q: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Rome"], answer: "Paris" },
             { q: "Which planet is known as the Red Planet?", options: ["Earth", "Mars", "Jupiter", "Saturn"], answer: "Mars" },
             { q: "Who wrote 'Hamlet'?", options: ["Shakespeare", "Hemingway", "Tolkien", "Austen"], answer: "Shakespeare" },
-            { q: "What is the largest ocean on Earth?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], answer: "Pacific" },
-            { q: "Which is the longest river in the world?", options: ["Amazon", "Nile", "Yangtze", "Mississippi"], answer: "Nile" },
-            { q: "What is the chemical symbol for Gold?", options: ["Au", "Ag", "Fe", "Pb"], answer: "Au" }
+            { q: "What is the largest ocean on Earth?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], answer: "Pacific" }
         ];
         
         let timer;
         let timeLeft = 300; // 5 minutes in seconds
+        let speechSynthesisInstance = window.speechSynthesis;
 
         function startTest() {
             document.getElementById('start-btn').style.display = 'none'; // Hide Start button
@@ -108,7 +103,7 @@
                 let speakButton = document.createElement('button');
                 speakButton.textContent = "🔊 Speak";
                 speakButton.className = 'speak-btn';
-                speakButton.onclick = () => speakOptions(index, item.q, item.options);
+                speakButton.onclick = () => speakOptions(item.q, item.options);
                 questionBlock.appendChild(speakButton);
                 
                 let optionsList = document.createElement('ul');
@@ -128,15 +123,17 @@
             });
         }
 
-        function speakOptions(index, question, options) {
+        function speakOptions(question, options) {
+            if (speechSynthesisInstance.speaking) {
+                speechSynthesisInstance.cancel(); // Stop ongoing speech
+            }
             const optionPrefixes = ["First option is", "Second option is", "Third option is", "Fourth option is"];
             const text = `${question}. ` + options.map((opt, i) => `${optionPrefixes[i]} ${opt}`).join(". ");
-            
             let speech = new SpeechSynthesisUtterance(text);
             speech.lang = "en-IN";
-            let voices = window.speechSynthesis.getVoices();
+            let voices = speechSynthesisInstance.getVoices();
             speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
-            window.speechSynthesis.speak(speech);
+            speechSynthesisInstance.speak(speech);
         }
 
         function startTimer() {
@@ -158,7 +155,9 @@
         }
 
         function submitQuiz() {
-            clearInterval(timer);
+            if (speechSynthesisInstance.speaking) {
+                speechSynthesisInstance.cancel(); // Stop ongoing speech
+            }
             let score = 0;
             questions.forEach((item, index) => {
                 const selectedOption = document.querySelector(`input[name="q${index}"]:checked`);
@@ -167,19 +166,14 @@
                 }
             });
             const resultText = `You got ${score} out of ${questions.length} questions correct!`;
-            document.getElementById('result-text').textContent = resultText;
-            document.getElementById('result-container').style.display = 'block'; // Show result container
-        }
-
-        function speakResult() {
-            const result = document.getElementById('result-text').textContent;
-            let speech = new SpeechSynthesisUtterance(result);
+            alert(resultText);
+            let speech = new SpeechSynthesisUtterance(resultText);
             speech.lang = "en-IN";
-            let voices = window.speechSynthesis.getVoices();
+            let voices = speechSynthesisInstance.getVoices();
             speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
-            window.speechSynthesis.speak(speech);
+            speechSynthesisInstance.speak(speech);
         }
-
+        
         // Prevent page refresh from resetting the quiz
         window.onbeforeunload = function() {
             return "Changes you made may not be saved.";

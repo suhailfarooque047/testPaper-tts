@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GK Test for Visually Impaired</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        #start-btn {
+            display: block;
+            margin: 20% auto;
+            padding: 20px 40px;
+            font-size: 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #quiz-container {
+            display: none; /* Hide quiz initially */
+        }
+        .question {
+            text-align: left;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .options {
+            list-style: none;
+            padding: 0;
+        }
+        .options li {
+            margin: 5px 0;
+        }
+        .speak-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #timer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            color: #d9534f;
+        }
+        #submit-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <button id="start-btn" onclick="startTest()">Start Test</button>
+    
+    <div id="quiz-container">
+        <h1>General Knowledge Test</h1>
+        <div id="timer">05:00</div>
+        <div id="quiz"></div>
+        <button id="submit-btn" onclick="submitQuiz()">Submit</button>
+        <div id="result-container" style="display:none;">
+            <p id="result-text"></p>
+            <button class="speak-btn" onclick="speakResult()">🔊 Speak Result</button>
+        </div>
+    </div>
+    
+    <script>
+        const questions = [
+            { q: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Rome"], answer: "Paris" },
+            { q: "Which planet is known as the Red Planet?", options: ["Earth", "Mars", "Jupiter", "Saturn"], answer: "Mars" },
+            { q: "Who wrote 'Hamlet'?", options: ["Shakespeare", "Hemingway", "Tolkien", "Austen"], answer: "Shakespeare" },
+            { q: "What is the largest ocean on Earth?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], answer: "Pacific" },
+            { q: "Which is the longest river in the world?", options: ["Amazon", "Nile", "Yangtze", "Mississippi"], answer: "Nile" },
+            { q: "What is the chemical symbol for Gold?", options: ["Au", "Ag", "Fe", "Pb"], answer: "Au" },
+            { q: "Who discovered gravity?", options: ["Newton", "Einstein", "Galileo", "Darwin"], answer: "Newton" },
+            { q: "What is the hardest natural substance?", options: ["Gold", "Iron", "Diamond", "Silver"], answer: "Diamond" },
+            { q: "What is the national bird of the USA?", options: ["Peacock", "Eagle", "Sparrow", "Owl"], answer: "Eagle" },
+            { q: "Who painted the Mona Lisa?", options: ["Van Gogh", "Picasso", "Da Vinci", "Michelangelo"], answer: "Da Vinci" }
+        ];
+        
+        let timer;
+        let timeLeft = 300; // 5 minutes in seconds
+
+        function startTest() {
+            document.getElementById('start-btn').style.display = 'none'; // Hide Start button
+            document.getElementById('quiz-container').style.display = 'block'; // Show quiz
+            createQuiz();
+            startTimer();
+        }
+
+        function createQuiz() {
+            const quizDiv = document.getElementById('quiz');
+            questions.forEach((item, index) => {
+                let questionBlock = document.createElement('div');
+                questionBlock.className = 'question';
+                
+                let questionText = document.createElement('p');
+                questionText.textContent = `${index + 1}. ${item.q}`;
+                questionBlock.appendChild(questionText);
+                
+                let speakButton = document.createElement('button');
+                speakButton.textContent = "🔊 Speak";
+                speakButton.className = 'speak-btn';
+                speakButton.onclick = () => speakText(item.q + ' ' + item.options.join(', '));
+                questionBlock.appendChild(speakButton);
+                
+                let optionsList = document.createElement('ul');
+                optionsList.className = 'options';
+                item.options.forEach(option => {
+                    let li = document.createElement('li');
+                    let radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = `q${index}`;
+                    radio.value = option;
+                    li.appendChild(radio);
+                    li.appendChild(document.createTextNode(option));
+                    optionsList.appendChild(li);
+                });
+                questionBlock.appendChild(optionsList);
+                quizDiv.appendChild(questionBlock);
+            });
+        }
+        
+        function speakText(text) {
+            let speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "en-IN";
+            let voices = window.speechSynthesis.getVoices();
+            speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
+            window.speechSynthesis.speak(speech);
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    submitQuiz(); // Automatically submit when time is up
+                } else {
+                    timeLeft--;
+                    document.getElementById('timer').textContent = formatTime(timeLeft);
+                }
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function submitQuiz() {
+            clearInterval(timer);
+            let score = 0;
+            questions.forEach((item, index) => {
+                const selectedOption = document.querySelector(`input[name="q${index}"]:checked`);
+                if (selectedOption && selectedOption.value === item.answer) {
+                    score++;
+                }
+            });
+            const resultText = `You got ${score} out of ${questions.length} questions correct!`;
+            document.getElementById('result-text').textContent = resultText;
+            document.getElementById('result-container').style.display = 'block'; // Show result container
+        }
+
+        function speakResult() {
+            const result = document.getElementById('result-text').textContent;
+            let speech = new SpeechSynthesisUtterance(result);
+            speech.lang = "en-IN";
+            let voices = window.speechSynthesis.getVoices();
+            speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
+            window.speechSynthesis.speak(speech);
+        }
+    </script>
+</body>
+</html>

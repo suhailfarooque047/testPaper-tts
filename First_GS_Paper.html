@@ -21,7 +21,7 @@
             cursor: pointer;
         }
         #quiz-container {
-            display: none; /* Hide quiz initially */
+            display: none;
         }
         .question {
             text-align: left;
@@ -33,7 +33,7 @@
             padding: 0;
         }
         .options li {
-            margin: 12px 0; /* Increased gap between options */
+            margin: 12px 0;
         }
         .speak-btn {
             background: #007bff;
@@ -59,18 +59,49 @@
             cursor: pointer;
             font-size: 18px;
         }
+        #feedback-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .correct {
+            color: green;
+        }
+        .incorrect {
+            color: red;
+        }
+        #speak-results-btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        #score-text {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <button id="start-btn" onclick="startTest()">Start Test</button>
-    
+
     <div id="quiz-container">
         <h1>General Knowledge Test</h1>
         <div id="timer">05:00</div>
         <div id="quiz"></div>
         <button id="submit-btn" onclick="submitQuiz()">Submit</button>
     </div>
-    
+
+    <div id="feedback-container">
+        <h2>Quiz Results</h2>
+        <div id="score-text"></div>
+        <button id="speak-results-btn">🔊 Speak Results</button>
+        <div id="feedback"></div>
+    </div>
+
     <script>
         const questions = [
             { q: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Rome"], answer: "Paris" },
@@ -84,14 +115,17 @@
             { q: "What is the national bird of the USA?", options: ["Peacock", "Eagle", "Sparrow", "Owl"], answer: "Eagle" },
             { q: "Who painted the Mona Lisa?", options: ["Van Gogh", "Picasso", "Da Vinci", "Michelangelo"], answer: "Da Vinci" }
         ];
-        
+
         let timer;
-        let timeLeft = 300; // 5 minutes in seconds
+        let timeLeft = 300;
+        let score = 0;
         let speechSynthesisInstance = window.speechSynthesis;
+        let currentSpeech = null;
+        let isSpeakingResults = false;
 
         function startTest() {
-            document.getElementById('start-btn').style.display = 'none'; // Hide Start button
-            document.getElementById('quiz-container').style.display = 'block'; // Show quiz
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('quiz-container').style.display = 'block';
             createQuiz();
             startTimer();
         }
@@ -101,17 +135,17 @@
             questions.forEach((item, index) => {
                 let questionBlock = document.createElement('div');
                 questionBlock.className = 'question';
-                
+
                 let questionText = document.createElement('p');
                 questionText.textContent = `${index + 1}. ${item.q}`;
                 questionBlock.appendChild(questionText);
-                
+
                 let speakButton = document.createElement('button');
                 speakButton.textContent = "🔊 Speak";
                 speakButton.className = 'speak-btn';
                 speakButton.onclick = () => speakOptions(item.q, item.options);
                 questionBlock.appendChild(speakButton);
-                
+
                 let optionsList = document.createElement('ul');
                 optionsList.className = 'options';
                 item.options.forEach((option, i) => {
@@ -120,6 +154,7 @@
                     radio.type = 'radio';
                     radio.name = `q${index}`;
                     radio.value = option;
+                    radio.onclick = () => stopSpeech(); // Stop speech when an option is clicked
                     li.appendChild(radio);
                     li.appendChild(document.createTextNode(option));
                     optionsList.appendChild(li);
@@ -131,22 +166,30 @@
 
         function speakOptions(question, options) {
             if (speechSynthesisInstance.speaking) {
-                speechSynthesisInstance.cancel(); // Stop ongoing speech
+                speechSynthesisInstance.cancel();
             }
             const optionPrefixes = ["First option is", "Second option is", "Third option is", "Fourth option is"];
             const text = `${question}. ` + options.map((opt, i) => `${optionPrefixes[i]} ${opt}`).join(". ");
             let speech = new SpeechSynthesisUtterance(text);
             speech.lang = "en-IN";
+            speech.rate = 0.9; // Slower speech rate
             let voices = speechSynthesisInstance.getVoices();
             speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
             speechSynthesisInstance.speak(speech);
+        }
+
+        function stopSpeech() {
+            if (speechSynthesisInstance.speaking) {
+                speechSynthesisInstance.cancel();
+                isSpeakingResults = false;
+            }
         }
 
         function startTimer() {
             timer = setInterval(() => {
                 if (timeLeft <= 0) {
                     clearInterval(timer);
-                    submitQuiz(); // Automatically submit when time is up
+                    submitQuiz();
                 } else {
                     timeLeft--;
                     document.getElementById('timer').textContent = formatTime(timeLeft);
@@ -162,25 +205,106 @@
 
         function submitQuiz() {
             if (speechSynthesisInstance.speaking) {
-                speechSynthesisInstance.cancel(); // Stop ongoing speech
+                speechSynthesisInstance.cancel();
             }
-            let score = 0;
+            clearInterval(timer);
+
+            score = 0;
+            let feedbackHTML = '';
+
             questions.forEach((item, index) => {
                 const selectedOption = document.querySelector(`input[name="q${index}"]:checked`);
+                let isCorrect = false;
+
                 if (selectedOption && selectedOption.value === item.answer) {
                     score++;
+                    isCorrect = true;
                 }
+
+                feedbackHTML += `<p>`;
+                feedbackHTML += `<strong>${index + 1}. ${item.q}</strong><br>`;
+
+                if (selectedOption) {
+                    feedbackHTML += `Your answer: ${selectedOption.value} <span class="${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? 'Correct' : 'Incorrect'}</span><br>`;
+                } else {
+                    feedbackHTML += `You did not answer this question.<br>`;
+                }
+
+                feedbackHTML += `Correct answer: ${item.answer}<br>`;
+                feedbackHTML += `</p>`;
             });
+
             const resultText = `You got ${score} out of ${questions.length} questions correct!`;
-            alert(resultText);
-            let speech = new SpeechSynthesisUtterance(resultText);
-            speech.lang = "en-IN";
-            let voices = speechSynthesisInstance.getVoices();
-            speech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
-            speechSynthesisInstance.speak(speech);
+            alert(resultText); // Show alert with the result
+            document.getElementById('score-text').textContent = resultText; // Display result below Quiz Results
+            document.getElementById('feedback').innerHTML = feedbackHTML;
+            document.getElementById('quiz-container').style.display = 'none';
+            document.getElementById('feedback-container').style.display = 'block';
         }
-        
-        // Prevent page refresh from resetting the quiz
+
+        function speakResults() {
+            stopSpeech(); // Ensure any existing speech is stopped before starting a new one
+
+            const feedbackText = document.getElementById('feedback').textContent;
+            const resultText = `You got ${score} out of ${questions.length} questions correct!`;
+            const fullText = resultText + " " + feedbackText;
+
+            // Split the text into lines and add a pause (ellipsis) between them
+            const lines = fullText.split("\n");
+            let currentLine = 0;
+            isSpeakingResults = true;
+
+            function speakNextLine() {
+                if (currentLine < lines.length && isSpeakingResults) {
+                    const line = lines[currentLine].trim();
+                    if (line) {
+                        currentSpeech = new SpeechSynthesisUtterance(line + "...."); // Add pause
+                        currentSpeech.lang = "en-IN";
+                        currentSpeech.rate = 0.8;
+                        let voices = speechSynthesisInstance.getVoices();
+                        currentSpeech.voice = voices.find(voice => voice.lang === "en-IN") || voices[0];
+
+                        speechSynthesisInstance.speak(currentSpeech);
+                        currentSpeech.onend = () => {
+                            currentLine++;
+                            speakNextLine();
+                        };
+                    } else {
+                        currentLine++;
+                        speakNextLine();
+                    }
+                } else {
+                    isSpeakingResults = false;
+                }
+            }
+
+            speakNextLine();
+        }
+
+        // Stop speech when the speak button is clicked again
+        document.getElementById('speak-results-btn').addEventListener('click', function () {
+            if (speechSynthesisInstance.speaking) {
+                stopSpeech();
+            } else {
+                speakResults();
+            }
+        });
+
+        // Double-tap to stop speech
+	
+	document.addEventListener('dblclick', toggleSpeech);
+
+function toggleSpeech() {
+    if (speechSynthesis.speaking) {
+        if (speechSynthesis.paused) {
+            speechSynthesis.resume(); // Resumes if it was paused
+        } else {
+            speechSynthesis.pause(); // Pauses if it was speaking
+        }
+    }
+}
+
+
         window.onbeforeunload = function() {
             return "Changes you made may not be saved.";
         };
